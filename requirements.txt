@@ -1,0 +1,14 @@
+langchain
+langchain-core
+langgraph
+PyGithub
+pydantic
+langchain-openai
+python-dotenv
+gunicorn
+uvicorn
+fastapi[standard]
+langsmith
+pytest
+pytest-asyncio
+pytest-mock

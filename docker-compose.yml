@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  agenticrag:
+    container_name: code-reviewer-agent
+    image: softmind/code-reviewer-agent
+    build: .
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+
