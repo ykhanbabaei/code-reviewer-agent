@@ -8,6 +8,7 @@ class ContextRepoInfo:
     """
     ContextRepoInfo is a data class that holds the context information for a request.
     """
+    token: str
     user_name: str
     repository: str
     pull_number: int

@@ -17,9 +17,7 @@ class ReviewComment(BaseModel):
     file_path: str
     line_number: Optional[int] = None
     comment: str
-    severity: Optional[
-        Literal["info", "warning", "error"]
-    ] = None
+    severity: Optional[Literal["info", "warning", "error"]] = None
 
 class PRMetadata(BaseModel):
     title: str

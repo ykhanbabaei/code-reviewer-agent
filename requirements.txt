@@ -1,6 +1,11 @@
 langchain
 langchain-core
+langchain-community
+langchain-text-splitters
+langchain-huggingface
+langchain-qdrant
 langgraph
+qdrant-client
 PyGithub
 pydantic
 langchain-openai
@@ -12,3 +17,4 @@ langsmith
 pytest
 pytest-asyncio
 pytest-mock
+flashrank

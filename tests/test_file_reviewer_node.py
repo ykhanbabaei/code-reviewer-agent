@@ -36,7 +36,6 @@ async def test_file_reviewer_node(mocker):
     assert result.update["current_file_index"] == 1
     assert result.update["file_reviews"][0]["review"]["review"] == "LGTM!"
     assert result.goto == "file_reviewer_node"
-    print(result)
 
 
 def mock_build_pr_data_from() -> PRData:

@@ -7,137 +7,16 @@ from langgraph.types import Command
 
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
+
+from app.agents.prompts import FILE_REVIEWER_SYSTEM_PROMPT, FILE_REVIEWER_FEW_SHOT_EXAMPLES, \
+    FILE_REVIEWER_USER_PROMPT_TEMPLATE
 from app.config import settings
 from app.agents.context import ContextRepoInfo
 from app.agents.state import PRState, PRMetadata, ChangedFile
-from app.agents.tools import full_file_content_provider, handle_tool_errors
+from app.agents.tools import related_code_retriever
 import logging
 
 logger = logging.getLogger(__name__)
-
-SYSTEM_PROMPT = """
-You are a senior code reviewer. Follow these rules strictly:
-
-ISSUES LIST:
-- Only add an entry if there is a real, concrete problem in the code
-- Minor style preferences are NOT issues unless the project has a linter rule for it
-- If the code looks correct and clean, return issues: []
-- Do NOT add issues like "consider adding comments" or "could be more readable"
-
-SEVERITY:
-- "clean"    → zero issues found
-- "low"      → cosmetic or very minor, non-blocking
-- "medium"   → should fix before merge, but not a blocker
-- "high"     → likely bug or security concern, blocks merge
-- "critical" → data loss, auth bypass, crash — must fix
-
-has_breaking_change:
-- Default is false
-- Only set true if you can point to a specific caller that would break
-
-needs_tests:
-- Default is false  
-- Only set true if new branching logic was added (if/else, try/catch, new function)
-- Refactors and renames do NOT need new tests
-
-When in doubt, lean toward: empty issues list, severity=clean, booleans=false.
-
-TOOL USE — full_file_content_provider:
-You have access to a tool that fetches the full source file.
-Call it ONLY when ALL of these conditions are met:
-  - The patch references a symbol (function, class, variable) defined outside the patch
-  - AND that symbol is directly relevant to a suspected bug or security issue
-  - AND the file type is NOT: test, migration, config, lockfile, or generated code
-
-NEVER call the tool for:
-  - Patches under 50 lines that are self-contained
-  - Formatting, renaming, or comment-only changes  
-  - Files ending in: .json, .lock, .yaml, .yml, .md, .txt, .env
-  - When you are only "curious" about surrounding context
-  - When the patch is readable and no concrete issue is suspected
-
-Default behavior: review the patch directly. Tool use is the exception, not the rule.
-
-"""
-
-FEW_SHOT_EXAMPLES = """
-   ## Example 1 — Clean file, no issues
-
-   Diff:
-   - return user.name
-   + return user.display_name or user.name
-
-   Expected output:
-   {
-     "filename": "src/user.py",
-     "issues": [],
-     "severity": "clean",
-     "summary": "No issues found. Adds fallback to display_name with backward compatibility.",
-     "has_breaking_change": false,
-     "needs_tests": false
-   }
-
-   ## Example 2 — Real issue found
-
-   Diff:
-   + password = request.get("password")
-   + db.execute(f"SELECT * FROM users WHERE password = '{password}'")
-
-   Expected output:
-   {
-     "filename": "src/auth.py",
-     "issues": [
-       {
-         "line_range": "42-43",
-         "category": "security",
-         "severity": "critical",
-         "description": "Raw string interpolation into SQL query allows injection attacks.",
-         "suggestion": "Use parameterised queries: db.execute('SELECT * FROM users WHERE password = ?', (password,))"
-       }
-     ],
-     "severity": "critical",
-     "summary": "Critical SQL injection vulnerability found in password lookup.",
-     "has_breaking_change": false,
-     "needs_tests": true
-   }
-   
-   ## Example 3 — Patch is sufficient, tool NOT called
-    Diff:
-    - timeout = 30
-    + timeout = 60
-    Full Content Url: https://api.github.com/repos/.../contents/config.py
-    
-    Reasoning: The change is self-contained. The value being changed is visible 
-    in the patch. No external symbol needs to be resolved. Tool not called.
-    
-    Expected output:
-    {
-      "filename": "config.py",
-      "issues": [],
-      "severity": "clean",
-      "summary": "Timeout doubled. No issues found.",
-      "has_breaking_change": false,
-      "needs_tests": false
-    }
-    
-    ## Example 4 — Tool IS justified
-    Diff:
-    + result = process_payment(user, amount)
-    Full Content Url: https://api.github.com/repos/.../contents/billing.py
-    
-    Reasoning: process_payment is called but not defined in the patch. 
-    A payment function could have error handling or validation issues 
-    that are hidden in its definition. Tool called once.
-    
-    (tool returns full file content)
-    Expected output:
-    {
-      "filename": "billing.py",
-      "issues": [...],
-      ...
-    }
-
-   """
 
 class CodeIssue(BaseModel):
     line_range: str = Field(
@@ -214,9 +93,8 @@ def create_agent():
     from langchain.agents import create_agent
     return create_agent(
         model=model,
-        tools=[full_file_content_provider],
-        middleware=[handle_tool_errors],
-        system_prompt=SYSTEM_PROMPT,
+        tools=[related_code_retriever],
+        system_prompt=FILE_REVIEWER_SYSTEM_PROMPT,
         response_format=FileReview)
 
 
@@ -243,8 +121,8 @@ async def file_reviewer_node(state: PRState, runtime: Runtime[ContextRepoInfo]):
     else:
         _agent = lazily_load_agent()
         review = await _agent.ainvoke({"messages": [
-            {"role": "user", "content": build_prompt(file, state.pr_data.pr_metadata)},
-            {"role": "user", "content": FEW_SHOT_EXAMPLES}
+            {"role": "user", "content": FILE_REVIEWER_FEW_SHOT_EXAMPLES},
+            {"role": "user", "content": build_prompt(file, state.pr_data.pr_metadata)}
         ]})
     return Command(
         update={"file_reviews": [{"file": file.filename, "review": review["structured_response"].model_dump()}], "current_file_index": current_index + 1},
@@ -253,21 +131,12 @@ async def file_reviewer_node(state: PRState, runtime: Runtime[ContextRepoInfo]):
 
 
 def build_prompt(file: ChangedFile, pr_meta: PRMetadata):
-    return f"""
-    Review the PR patch below and return a structured response.
-
-    PR: {pr_meta.title}
-    Intent: {pr_meta.description[:300]}
-    File: {file.filename} ({file.status})
-    Patch: {file.patch}
-    
-    TOOL USE DECISION (follow strictly):
-    - If the patch is self-contained and all changed code is visible → review directly, do NOT call the tool
-    - If the patch calls or references a symbol NOT visible in the patch AND that symbol is critical to identifying a real bug → call the tool ONCE using: {file.full_content}
-    - Lock files, configs, migrations, generated files → NEVER call the tool
-    
-    When in doubt → do NOT call the tool. Patch-only review is preferred.
-    """
+    return FILE_REVIEWER_USER_PROMPT_TEMPLATE.format(
+        title=pr_meta.title,
+        intent=pr_meta.description[:300],
+        file_name=file.filename,
+        file_status=file.status,
+        file_patch=file.patch)
 
 
 def MOCK_INVOKE():

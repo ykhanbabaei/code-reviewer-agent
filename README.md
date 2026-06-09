@@ -1,96 +1,451 @@
-# code-reviewer-agent
 
-A lightweight, stream-first code-review assistant service built with FastAPI. This project is designed for high-throughput, low-latency workloads and production-readiness: async stream-based processing, Dockerized deployment, integrated monitoring via LangSmith, robust logging, and fault-tolerant patterns.
+# 🤖 Code Reviewer Agent
 
-Key features
-- Stream-based async processing (asyncio + FastAPI streaming endpoints)
-- Dockerized with Dockerfile and docker-compose for local and containerized deployments
-- FastAPI-powered HTTP API (async endpoints, streaming responses)
-- LangSmith integration for monitoring, metrics, and run logging
-- Structured logging (console + file, configurable level)
-- Fault-tolerance: retries, backoff, graceful shutdown, and idempotency patterns
+> A production-grade AI system that automatically reviews GitHub Pull Requests using LLMs, static analysis tools, and agentic workflows built with LangGraph.
 
-Quick start (local)
-1. Create a virtual environment and install dependencies:
-   python -m venv .venv
-   .venv\Scripts\activate
-   pip install -r requirements.txt
-2. Run the API server:
-   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-3. Open http://localhost:8000/docs for the OpenAPI UI.
+This system acts as an **intelligent CI reviewer**, capable of analyzing code quality, detecting security vulnerabilities, and generating actionable PR feedback in real time.
 
-Docker
-- Build and run with docker-compose:
-  docker-compose up --build
-- The Dockerfile produces a lightweight container running uvicorn. Use environment variables (see Configuration) to provide secrets and runtime options.
+It is designed with **scalability, observability, fault tolerance, and streaming-first architecture**.
 
-Stream-based async design
-- The service uses asyncio for concurrency and prefers streaming when handling large inputs or long-running operations.
-- FastAPI streaming endpoints return async generators so clients can start receiving partial results immediately.
-- Internal processing is implemented with async queues and background tasks so work is processed continuously without blocking request handlers.
-- Benefits: lower memory footprint, improved latency for long-running operations, backpressure-friendly.
+---
 
-FastAPI details
-- Endpoints are declared async and use pydantic models for validation.
-- Streaming endpoints use StreamingResponse with async generators to yield chunks as soon as they are available.
-- Health, metrics, and readiness endpoints are exposed for orchestration and monitoring.
+# 🚀 Tech Stack
 
-LangSmith monitoring and metrics
-- LangSmith is used to collect run-level telemetry and structured traces for important operations.
-- To enable LangSmith, set the LANGSMITH_API_KEY environment variable. Optionally configure LANGSMITH_PROJECT or LANGSMITH_ENV.
-- The integration logs events such as: request start/stop, stream events, errors, processing latency, and custom metrics.
-- Example environment variables:
-  - LANGSMITH_API_KEY=your_key_here
-  - LANGSMITH_PROJECT=code-reviewer-agent
+### 🧠 AI / Agent Layer
 
-Logging
-- The app uses structured logging (JSON-capable format optional) with configurable level via LOG_LEVEL environment variable (default: INFO).
-- Logs include request IDs and trace IDs when LangSmith/OpenTelemetry is enabled to correlate logs with traces and runs.
-- Configure handlers for console output and optional file rotation for persistent logs.
+* **LangGraph** – stateful agent orchestration (fan-out/fan-in, checkpoints, retries)
+* **LangChain** – LLM integration, tool calling, structured outputs
+* **OpenAI / Claude / Local LLMs (Ollama, vLLM)**
 
-Fault tolerance and resilience
-- Retries: Use exponential backoff (e.g., tenacity) for transient external calls (network, models, APIs).
-- Circuit breakers: Protect downstream dependencies by failing fast when a dependency is unhealthy.
-- Graceful shutdown: Signal handlers ensure background tasks complete or checkpoint progress before exiting.
-- Idempotency and deduplication: Requests that can be retried are handled idempotently or deduplicated by idempotency keys.
-- Backpressure: Async queues and bounded worker pools provide natural backpressure to prevent resource exhaustion.
+---
 
-Observability and metrics
-- Instrument latency, throughput, success/error counts, and queue depth as metrics.
-- LangSmith captures run artifacts and structured events; add Prometheus or OpenTelemetry for additional metric sinks.
+### ⚡ Backend
 
-Configuration
-- Environment variables configure runtime behavior:
-  - LOG_LEVEL (default: INFO)
-  - LANGSMITH_API_KEY (optional)
-  - HOST, PORT
-  - WORKER_COUNT, QUEUE_SIZE
-- Secrets should be provided via environment variables or secret stores; never commit them to source.
+* **FastAPI** – async API gateway + GitHub webhook receiver
+* **Uvicorn** – ASGI server for high-performance async execution
 
-Recommended production practices
-- Run behind a process manager or container orchestrator (Docker Compose, Kubernetes).
-- Use HTTPS, a reverse proxy (NGINX), and configure resource limits for containers.
-- Centralize logs and telemetry in an observability backend (LangSmith + Prometheus/Grafana or vendor of choice).
-- Configure liveness/readiness probes for container orchestration.
+---
 
-Folder layout (example)
-- app/ - application package (FastAPI app, endpoints, background workers)
-- Dockerfile - container image definition
-- docker-compose.yml - local orchestration
-- requirements.txt - Python dependencies
-- tests/ - unit and integration tests
+### 🔄 Streaming & Async Architecture
 
-Extending monitoring
-- Add custom LangSmith events for important domain actions (e.g., review.completed, review.error).
-- Record contextual metadata: request id, user id, repo, file path, and metrics such as token usage or processing time.
+* **Async Python (asyncio)**
+* **Streaming LLM responses (token-level / chunk-level)**
+* **Background task execution (non-blocking webhook handling)**
+* Optional:
 
-Contributing
-- Fork, create a branch, add tests for new behavior, and open a pull request.
-- Keep changes small and include tests for any bugfix or feature.
+  * Celery / Redis Queue for distributed workloads
 
-License
-- See LICENSE file for license details (if present).
+---
 
-Support
-- For questions or contributions, open an issue in this repository.
+### 🧪 Code Analysis Tools
 
+* Bandit (security scanning)
+* Semgrep (rule-based static analysis)
+* Ruff / Pylint (linting & quality checks)
+
+---
+
+### 📊 Observability & Monitoring
+
+* **LangSmith**
+
+  * Trace LLM calls
+  * Track latency per node
+  * Monitor token usage & cost
+  * Debug agent execution graphs
+* Structured logging (JSON logs)
+* Metrics-ready architecture (Prometheus-compatible design)
+
+---
+
+### 🧱 Infrastructure
+
+* Docker (containerized deployment)
+* PostgreSQL (state + checkpoint persistence)
+* Redis (queueing + caching)
+* GitHub API integration
+
+---
+
+# 🏗️ System Architecture
+
+```text
+GitHub PR Event
+        ↓
+FastAPI Webhook (async, non-blocking)
+        ↓
+LangGraph Orchestrator (state machine agent)
+        ↓
+Fan-out File Analysis (parallel execution)
+        ↓
+LLM + Static Analysis Tools
+        ↓
+Streaming Aggregation Layer
+        ↓
+LangSmith Observability Trace
+        ↓
+GitHub PR Comment + Status Update
+```
+
+---
+
+# ⚙️ Key Features
+
+## ⚡ Streaming-Based Async Processing
+
+* Non-blocking PR ingestion via FastAPI
+* Async file-level analysis
+* Streaming LLM responses for incremental processing
+* Real-time partial result aggregation
+
+---
+
+## 🧠 Agentic Multi-Step Reasoning
+
+* File-level + repo-level reasoning
+* Tool-augmented LLM execution
+* Reflection loop (self-review of findings)
+* Context-aware issue prioritization
+
+---
+
+## 🔁 Fault Tolerant Design
+
+* LangGraph checkpointing (resume execution after failure)
+* Retry-safe node execution
+* Idempotent GitHub webhook processing
+* Graceful degradation (Workflow fallbacks, reduced analysis on failure)
+
+---
+
+## 📊 Observability with LangSmith
+
+* Full traceability of:
+
+  * Each LangGraph node
+  * LLM prompts and outputs
+  * Tool calls (Bandit/Semgrep/etc.)
+* Performance metrics:
+
+  * Latency per PR
+  * Token usage per file
+  * Cost estimation per run
+* Debuggable execution graph per PR
+
+---
+
+## 🐳 Fully Dockerized
+
+* Production-ready container setup
+* Multi-service support (API + worker + DB + Redis)
+* Environment-based configuration
+
+---
+
+# 📦 Project Structure
+
+```text
+code-reviewer-agent/
+│
+├── app/
+│   ├── api/                  # FastAPI routes (webhooks, status API)
+│   ├── agent/                # LangGraph workflow definition
+│   │   ├── graph.py
+│   │   ├── nodes.py
+│   │   ├── state.py
+│   │   └── tools.py
+│   │
+│   ├── services/            # GitHub + LLM + orchestration services
+│   ├── analyzers/           # Bandit, Semgrep, Ruff integrations
+│   ├── prompts/             # Prompt templates
+│   ├── observability/       # LangSmith + logging config
+│   └── utils/
+│
+├── tests/
+├── docker-compose.yml
+├── Dockerfile
+├── main.py
+├── requirements.txt
+└── README.md
+```
+
+---
+
+# ⚙️ Setup and Installation
+
+## 1. Clone repository
+
+```bash
+git clone https://github.com/your-org/code-reviewer-agent.git
+cd code-reviewer-agent
+```
+
+---
+
+## 2. Create virtual environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Linux / Mac
+.venv\Scripts\activate      # Windows
+```
+
+---
+
+## 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## 4. Environment configuration
+
+Create `.env`:
+
+```env
+OPENAI_API_KEY=your_key
+
+DATABASE_URL=postgresql://user:password@localhost:5432/reviewer
+REDIS_URL=redis://localhost:6379
+
+LANGSMITH_API_KEY=your_langsmith_key
+LANGSMITH_PROJECT=code-reviewer-agent
+```
+
+---
+
+## 5. Run locally
+
+```bash
+uvicorn app.main:app --reload
+```
+
+---
+
+# 🐳 Deployment (Production Ready)
+
+## Option 1: Docker (Recommended)
+
+### Build image
+
+```bash
+docker build -t code-reviewer-agent .
+```
+
+---
+
+### Run container
+
+```bash
+docker run -p 8000:8000 --env-file .env code-reviewer-agent
+```
+
+---
+
+## Option 2: Docker Compose (Full Stack)
+
+```yaml
+version: "3.9"
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+
+  worker:
+    build: .
+    command: python worker.py
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+
+  redis:
+    image: redis:7
+
+  postgres:
+    image: postgres:15
+```
+
+---
+
+## Option 3: Cloud Deployment
+
+Recommended:
+
+* AWS ECS / Fargate
+* Google Cloud Run
+* Azure Container Apps
+* Fly.io (lightweight deployments)
+
+---
+
+### Production Best Practices
+
+* Use worker-based architecture for LangGraph execution
+* Enable PostgreSQL checkpointing
+* Use Redis for queueing + deduplication
+* Enable HTTPS for GitHub webhooks
+* Configure autoscaling for worker nodes
+
+---
+
+# 🧠 How to Use
+
+## 1. Configure GitHub Webhook
+
+Go to:
+
+```
+GitHub → Settings → Webhooks → Add webhook
+```
+
+### Configuration:
+
+| Field        | Value                                    |
+| ------------ | ---------------------------------------- |
+| Payload URL  | `https://your-domain.com/webhook/github` |
+| Content type | `application/json`                       |
+| Events       | Pull Requests                            |
+
+---
+
+## 2. Trigger a PR Review
+
+Simply open or update a pull request:
+
+```text
+GitHub automatically sends webhook → system starts analysis
+```
+
+---
+
+## 3. What happens internally
+
+1. FastAPI receives webhook (async, non-blocking)
+2. PR diff is fetched from GitHub API
+3. LangGraph orchestrates analysis pipeline
+4. Files processed in parallel (fan-out)
+5. LLM + static tools analyze code
+6. Streaming aggregation builds final report
+7. LangSmith logs full execution trace
+8. GitHub PR comment is posted
+
+---
+
+## 4. View results
+
+### In GitHub PR:
+
+* Automated review comment
+* Severity-ranked issues
+* Suggested fixes
+
+### In CI status:
+
+* Pass / Fail / Warning
+
+---
+
+## 5. API Endpoints
+
+### Triggered internally (webhook)
+
+```http
+POST /webhook/github
+```
+
+---
+
+### Check status
+
+```http
+GET /review/{review_id}/status
+```
+
+---
+
+### Cancel review
+
+```http
+POST /review/{review_id}/cancel
+```
+
+---
+
+# 🔐 Security
+
+* GitHub webhook signature validation (HMAC SHA-256)
+* Prompt injection mitigation via diff-only context isolation
+* No execution of user-provided code
+* Secrets stored in environment variables / vault
+* Optional self-hosted LLM support for air-gapped environments
+
+---
+
+# 📊 Observability
+
+Powered by **LangSmith**
+
+You can monitor:
+
+* Full LangGraph execution traces
+* Node-level latency
+* LLM cost & token usage
+* Tool execution logs
+* Failure points in workflows
+
+---
+
+# 🔁 Fault Tolerance Strategy
+
+* LangGraph checkpointing (resume interrupted workflows)
+* Retry policies per node
+* Idempotent webhook handling
+* Graceful fallback to lightweight analysis models
+* Dead-letter queue for failed PRs
+
+---
+
+# 📌 Future Enhancements
+
+* Auto-fix PR generation (AI patch suggestions)
+* Multi-agent reviewer system (security / performance / style agents)
+* Slack + Teams integration
+* PR risk scoring dashboard
+* Continuous learning from developer feedback
+
+---
+
+
+# How to use
+After deployment, The Agent is accessible in `http://localhost:8000`.
+Sample curl request to trigger a review:
+
+```bash
+curl --no-buffer -X POST "http://localhost:8000/review" \
+-H "Content-Type: application/json" \
+-d '{  "user_name": "github_user",  "repository": "github_repository",        "pull_number": 2}'
+```
+
+# Environment Variables
+
+   ```bash
+   OPENAI_API_KEY="your openai api key"
+   ```
+  Optionally if you want to enable langsmith tracing, add the following environment variable:
+   ```bash
+   LANGSMITH_TRACING="langsmith is enabled or not"
+   LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com
+   LANGSMITH_API_KEY="api key for langsmith"
+   LANGSMITH_PROJECT="Langgraph"
+   ```

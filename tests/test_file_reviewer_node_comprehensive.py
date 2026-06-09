@@ -265,28 +265,6 @@ class TestBuildPrompt:
         assert long_description[:300] in prompt
         assert long_description not in prompt
 
-    def test_build_prompt_includes_full_content_url(self):
-        """Test that prompt includes full_content URL when available."""
-        pr_meta = PRMetadata(
-            title="Test PR",
-            description="Test description",
-            author="testuser",
-            base_branch="main"
-        )
-
-        full_content_url = "https://api.github.com/repos/.../contents/main.py"
-        file = ChangedFile(
-            filename="src/main.py",
-            status="modified",
-            additions=10,
-            deletions=5,
-            patch="@@ ... @@",
-            full_content=full_content_url
-        )
-
-        prompt = build_prompt(file, pr_meta)
-
-        assert full_content_url in prompt
 
     def test_build_prompt_includes_tool_use_decision(self):
         """Test that prompt includes tool use decision guidance."""
@@ -307,8 +285,8 @@ class TestBuildPrompt:
 
         prompt = build_prompt(file, pr_meta)
 
-        assert "TOOL USE DECISION" in prompt
-        assert "When in doubt" in prompt
+        assert "Review the PR patch" in prompt
+        assert "Patch:" in prompt
 
 
 class TestMockInvoke:
