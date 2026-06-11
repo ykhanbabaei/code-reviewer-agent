@@ -1,5 +1,3 @@
-from time import sleep
-
 from langchain_openai import ChatOpenAI
 from langgraph.errors import NodeError
 from langgraph.runtime import Runtime
@@ -10,7 +8,6 @@ from pydantic import BaseModel, Field
 
 from app.agents.prompts import FILE_REVIEWER_SYSTEM_PROMPT, FILE_REVIEWER_FEW_SHOT_EXAMPLES, \
     FILE_REVIEWER_USER_PROMPT_TEMPLATE
-from app.config import settings
 from app.agents.context import ContextRepoInfo
 from app.agents.state import PRState, PRMetadata, ChangedFile
 from app.agents.tools import related_code_retriever

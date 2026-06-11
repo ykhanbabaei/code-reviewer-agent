@@ -5,7 +5,7 @@ from langgraph.prebuilt import ToolRuntime
 
 from app.agents.context import ContextRepoInfo
 from app.agents.prompts import RELATED_CODE_RETRIEVER_TOOL
-from app.config import Settings, settings
+from app.config import settings
 from app.services.rag_service import source_code_rag_service
 
 logger = logging.getLogger(__name__)
