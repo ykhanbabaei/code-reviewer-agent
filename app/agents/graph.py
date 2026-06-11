@@ -64,9 +64,8 @@ class WorkflowAgent:
                 elif ("file_reviewer_node" in node_name) and state and "file_reviews" in state and len(state["file_reviews"]) > 0:
                     yield {
                         "file_name" : state["file_reviews"][0]["file"],
-                        "severity" : state["file_reviews"][0]["review"]["severity"],
+                        "issues" : state["file_reviews"][0]["review"]["issues"],
                         "summary" : state["file_reviews"][0]["review"]["summary"],
-                        "error": state["file_reviews"][0]["review"]["error"]
                     }
 
 

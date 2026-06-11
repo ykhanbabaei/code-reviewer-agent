@@ -1,29 +1,5 @@
 FILE_REVIEWER_SYSTEM_PROMPT = """
-You are a senior code reviewer. Follow these rules strictly:
-
-ISSUES LIST:
-- Only add an entry if there is a real, concrete problem in the code
-- Minor style preferences are NOT issues unless the project has a linter rule for it
-- If the code looks correct and clean, return issues: []
-- Do NOT add issues like "consider adding comments" or "could be more readable"
-
-SEVERITY:
-- "clean"    → zero issues found
-- "low"      → cosmetic or very minor, non-blocking
-- "medium"   → should fix before merge, but not a blocker
-- "high"     → likely bug or security concern, blocks merge
-- "critical" → data loss, auth bypass, crash — must fix
-
-has_breaking_change:
-- Default is false
-- Only set true if you can point to a specific caller that would break
-
-needs_tests:
-- Default is false  
-- Only set true if new branching logic was added (if/else, try/catch, new function)
-- Refactors and renames do NOT need new tests
-
-When in doubt, lean toward: empty issues list, severity=clean, booleans=false.
+You are a senior code reviewer.
 
 TOOL USE — related_code_retriever:
 - You may call this tool AT MOST ONCE per file review
@@ -32,6 +8,12 @@ TOOL USE — related_code_retriever:
 You have access to a tool that retrieves semantically relevant code chunks from
 an embedded index of the full codebase.
 
+You may call related_code_retriever at most ONCE per file review.
+
+You must not attempt multiple queries or refined queries.
+
+If the first retrieval does not return useful context,
+assume no related code exists and continue review.
 """
 
 FILE_REVIEWER_FEW_SHOT_EXAMPLES = """
@@ -47,8 +29,6 @@ FILE_REVIEWER_FEW_SHOT_EXAMPLES = """
      "issues": [],
      "severity": "clean",
      "summary": "No issues found. Adds fallback to display_name with backward compatibility.",
-     "has_breaking_change": false,
-     "needs_tests": false
    }
 
    ## Example 2 — Real issue found
@@ -63,16 +43,12 @@ FILE_REVIEWER_FEW_SHOT_EXAMPLES = """
      "issues": [
        {
          "line_range": "42-43",
-         "category": "security",
          "severity": "critical",
          "description": "Raw string interpolation into SQL query allows injection attacks.",
-         "suggestion": "Use parameterised queries: db.execute('SELECT * FROM users WHERE password = ?', (password,))"
        }
      ],
      "severity": "critical",
      "summary": "Critical SQL injection vulnerability found in password lookup.",
-     "has_breaking_change": false,
-     "needs_tests": true
    }
 
     ## Example 3 — Tool IS justified

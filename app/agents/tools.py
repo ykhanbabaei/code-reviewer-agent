@@ -5,6 +5,7 @@ from langgraph.prebuilt import ToolRuntime
 
 from app.agents.context import ContextRepoInfo
 from app.agents.prompts import RELATED_CODE_RETRIEVER_TOOL
+from app.config import Settings, settings
 from app.services.rag_service import source_code_rag_service
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,15 @@ logger = logging.getLogger(__name__)
 
 @tool(description=RELATED_CODE_RETRIEVER_TOOL)
 def related_code_retriever(q: str, runtime: ToolRuntime[ContextRepoInfo]):
-    logger.info(f"loading related code file called for repository: {runtime.context.repository}")
+    logger.info(f"loading related code file called for repository: {runtime.context.repository} count: {runtime.context.retrieval_used_count} query: {q}")
+    runtime.context.retrieval_used_count += 1
+    if runtime.context.retrieval_used_count > settings.tool.max_tool_call:
+        return (
+            "TOOL_LIMIT_REACHED: related_code_retriever "
+            "may only be called once."
+        )
+
+
     docs = source_code_rag_service.retrieve_documents(
         github_user_name=runtime.context.user_name,
         github_repository=runtime.context.repository,

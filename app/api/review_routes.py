@@ -15,7 +15,7 @@ router = APIRouter()
 class PRRequest(BaseModel):
     user_name: str
     repository: str
-    pull_number: int
+    pull_number: Optional[int] = Field(default=0, description="pull request number, if not provided, it will default to 0 and the agent should handle it accordingly")
     token: Optional[str] = Field(default=None, description="access token for loading source code and indexing")
 
 
@@ -39,4 +39,5 @@ async def create_item(pr: PRRequest):
 async def embed(pr: PRRequest):
     # Run blocking code in thread pool since SourceCodeRagService is blocking
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, lambda: source_code_rag_service.retrieve_and_embed(pr.user_name, pr.repository, pr.token))
+    _ = await loop.run_in_executor(None, lambda: source_code_rag_service.retrieve_and_embed(pr.user_name, pr.repository, pr.token))
+    return "repository embedded"

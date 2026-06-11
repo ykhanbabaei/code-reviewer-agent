@@ -12,3 +12,4 @@ class ContextRepoInfo:
     user_name: str
     repository: str
     pull_number: int
+    retrieval_used_count: int  = 0

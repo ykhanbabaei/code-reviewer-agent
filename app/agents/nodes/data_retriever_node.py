@@ -54,11 +54,7 @@ def build_pr_data_from(pr: PullRequest) -> PRData:
 async def data_retriever_node(state: PRState, runtime: Runtime[ContextRepoInfo]):
     """Performs the connecting to remote repository and loading of the PR data."""
     logger.info(f"retrieving PR data for request {runtime.context}")
-
-    if settings.IS_MOCK:
-        return {"pr_data": mock_build_pr_data_from()}
-    else:
-        return await data_retriever(runtime=runtime)
+    return await data_retriever(runtime=runtime)
 
 async def data_retriever(runtime: Runtime[ContextRepoInfo]):
     g = Github()
@@ -66,46 +62,6 @@ async def data_retriever(runtime: Runtime[ContextRepoInfo]):
     pr = repo.get_pull(number=runtime.context.pull_number)
     return {"pr_data": build_pr_data_from(pr)}
 
-
-def mock_build_pr_data_from():
-    import json
-    json_string = '''{
-       "files_changed":[
-          {
-             "additions":7,
-             "deletions":0,
-             "filename":"src/main/java/org/softmind/urlshortener/controller/UrlShortenerController.java",
-             "full_content":"https://api.github.com/repos/ykhanbabaei/url-shortener/contents/src%2Fmain%2Fjava%2Forg%2Fsoftmind%2Furlshortener%2Fcontroller%2FUrlShortenerController.java?ref=0ba3ff92f801b3ae77407120afe1e8fe05bff349",
-             "patch":"@@ -25,4 +25,11 @@ public CompletableFuture<String> findUrl(@PathVariable(\\"code\\") String code){\\n         return urlShortenerService.findUrl(code);\\n     }\\n \\n+    @DeleteMapping(path = \\"api/unregister\\")\\n+    public CompletableFuture<Void> unregister(@RequestBody UrlDto urlDto){\\n+        return urlShortenerService.unregister(urlDto.url());\\n+    }\\n+\\n+\\n+\\n }",
-             "status":"modified"
-          },
-          {
-             "additions":4,
-             "deletions":0,
-             "filename":"src/main/java/org/softmind/urlshortener/exception/SaveException.java",
-             "full_content":"https://api.github.com/repos/ykhanbabaei/url-shortener/contents/src%2Fmain%2Fjava%2Forg%2Fsoftmind%2Furlshortener%2Fexception%2FSaveException.java?ref=0ba3ff92f801b3ae77407120afe1e8fe05bff349",
-             "patch":"@@ -6,4 +6,8 @@ public SaveException(String message, Exception e) {\\n         super(message, e);\\n     }\\n \\n+    public SaveException(String message) {\\n+        super(message);\\n+    }\\n+\\n }",
-             "status":"modified"
-          },
-          {
-             "additions":8,
-             "deletions":0,
-             "filename":"src/main/java/org/softmind/urlshortener/service/UrlShortenerService.java",
-             "full_content":"https://api.github.com/repos/ykhanbabaei/url-shortener/contents/src%2Fmain%2Fjava%2Forg%2Fsoftmind%2Furlshortener%2Fservice%2FUrlShortenerService.java?ref=0ba3ff92f801b3ae77407120afe1e8fe05bff349",
-             "patch":"@@ -15,6 +15,7 @@\\n import org.springframework.util.StringUtils;\\n \\n import java.time.LocalDate;\\n+import java.util.Optional;\\n import java.util.UUID;\\n import java.util.concurrent.CompletableFuture;\\n \\n@@ -74,4 +75,11 @@ private String createRandomCode() {\\n         return UUID.randomUUID().toString().substring(0, URL_LEN);\\n     }\\n \\n+    public CompletableFuture<Void> unregister(String url) {\\n+        Optional<UrlShortener> urlShortener = urlShortenerRepository.findByUrl(url);\\n+        if(urlShortener.isEmpty()){\\n+            throw new NotFoundException(String.format(\\"Url not found: %s \\", url));\\n+        }\\n+        return CompletableFuture.runAsync(() -> urlShortenerRepository.delete(urlShortener.get()));\\n+    }\\n }",
-             "status":"modified"
-          }
-       ],
-       "linked_issues":[],
-       "pr_metadata":{
-          "author":"ykhanbabaei",
-          "base_branch":"main",
-          "description":"",
-          "labels":[],
-          "title":"Feature/unregister"
-       },
-       "review_comments":[]
-    }'''
 
     # Parse it
     pr_data_dict = json.loads(json_string)
