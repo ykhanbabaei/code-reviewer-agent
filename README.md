@@ -212,11 +212,9 @@ LANGSMITH_TRACING=true #optional for monitoring
 LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com    #optional for monitoring
 LANGSMITH_API_KEY=api_key   #optional for monitoring
 LANGSMITH_PROJECT="Langgraph" #optional for monitoring
-
-REDIS_CACHE_URL="redis://@localhost:6379/0" #optional for enabling cache
-POSTGRES_URL="postgresql://postgres:postgres@localhost:5432/langgraph" #optional for storing state data
-
-MLFLOW_TRACKING_URI="http://localhost:5000/"  # optional
+REDIS_CACHE_URL="redis://@redis:6379/0" #optional for enabling cache
+POSTGRES_URL="postgresql://postgres:postgres@postgres:5432/langgraph" #optional for storing state data
+MLFLOW_TRACKING_URI="http://mlflow:5000/"  # optional
 MLFLOW_EXPERIMENT="langgraph"   # optional
 ```
 
