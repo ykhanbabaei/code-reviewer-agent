@@ -45,6 +45,7 @@ def mock_build_pr_data_from() -> PRData:
           {
              "additions":7,
              "deletions":0,
+             "commit_sha":"abcd12345678",
              "filename":"src/main/java/org/softmind/urlshortener/controller/UrlShortenerController.java",
              "full_content":"https://api.github.com/repos/ykhanbabaei/url-shortener/contents/src%2Fmain%2Fjava%2Forg%2Fsoftmind%2Furlshortener%2Fcontroller%2FUrlShortenerController.java?ref=0ba3ff92f801b3ae77407120afe1e8fe05bff349",
              "patch":"@@ -25,4 +25,11 @@ public CompletableFuture<String> findUrl(@PathVariable(\\"code\\") String code){\\n         return urlShortenerService.findUrl(code);\\n     }\\n \\n+    @DeleteMapping(path = \\"api/unregister\\")\\n+    public CompletableFuture<Void> unregister(@RequestBody UrlDto urlDto){\\n+        return urlShortenerService.unregister(urlDto.url());\\n+    }\\n+\\n+\\n+\\n }",
@@ -53,6 +54,7 @@ def mock_build_pr_data_from() -> PRData:
           {
              "additions":4,
              "deletions":0,
+             "commit_sha":"abcd12345678",
              "filename":"src/main/java/org/softmind/urlshortener/exception/SaveException.java",
              "full_content":"https://api.github.com/repos/ykhanbabaei/url-shortener/contents/src%2Fmain%2Fjava%2Forg%2Fsoftmind%2Furlshortener%2Fexception%2FSaveException.java?ref=0ba3ff92f801b3ae77407120afe1e8fe05bff349",
              "patch":"@@ -6,4 +6,8 @@ public SaveException(String message, Exception e) {\\n         super(message, e);\\n     }\\n \\n+    public SaveException(String message) {\\n+        super(message);\\n+    }\\n+\\n }",
@@ -61,6 +63,7 @@ def mock_build_pr_data_from() -> PRData:
           {
              "additions":8,
              "deletions":0,
+             "commit_sha":"abcd12345678",
              "filename":"src/main/java/org/softmind/urlshortener/service/UrlShortenerService.java",
              "full_content":"https://api.github.com/repos/ykhanbabaei/url-shortener/contents/src%2Fmain%2Fjava%2Forg%2Fsoftmind%2Furlshortener%2Fservice%2FUrlShortenerService.java?ref=0ba3ff92f801b3ae77407120afe1e8fe05bff349",
              "patch":"@@ -15,6 +15,7 @@\\n import org.springframework.util.StringUtils;\\n \\n import java.time.LocalDate;\\n+import java.util.Optional;\\n import java.util.UUID;\\n import java.util.concurrent.CompletableFuture;\\n \\n@@ -74,4 +75,11 @@ private String createRandomCode() {\\n         return UUID.randomUUID().toString().substring(0, URL_LEN);\\n     }\\n \\n+    public CompletableFuture<Void> unregister(String url) {\\n+        Optional<UrlShortener> urlShortener = urlShortenerRepository.findByUrl(url);\\n+        if(urlShortener.isEmpty()){\\n+            throw new NotFoundException(String.format(\\"Url not found: %s \\", url));\\n+        }\\n+        return CompletableFuture.runAsync(() -> urlShortenerRepository.delete(urlShortener.get()));\\n+    }\\n }",

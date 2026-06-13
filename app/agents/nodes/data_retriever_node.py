@@ -7,7 +7,6 @@ from langgraph.constants import END
 from app.agents.context import ContextRepoInfo
 from app.agents.state import PRState, PRMetadata, PRData, ChangedFile
 import logging
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +27,7 @@ def build_pr_data_from(pr: PullRequest) -> PRData:
     for file in pr.get_files():
         files_changed.append(ChangedFile(
             filename=file.filename,
+            commit_sha=file.sha,
             status=file.status,
             additions=file.additions,
             deletions=file.deletions,
@@ -63,16 +63,8 @@ async def data_retriever(runtime: Runtime[ContextRepoInfo]):
     return {"pr_data": build_pr_data_from(pr)}
 
 
-    # Parse it
-    pr_data_dict = json.loads(json_string)
-    pr_data_dict["pr_metadata"]["labels"] = []
-    pr_data_dict["files_changed"] = [ChangedFile(**file) for file in pr_data_dict["files_changed"]]
-    pr_data_dict["pr_metadata"] = PRMetadata(**pr_data_dict["pr_metadata"])
-    return PRData(**pr_data_dict)
-
-
 def data_retriever_error_handler(state: PRState, error: NodeError) -> Command:
-    logger.error(f"Error in data retriever node: {error.error}")
+    logger.exception(f"Error in data retriever node: {error.error}", stack_info=True)
     return Command(
         update={"error": f"Error during retrieving data: {error.error}"},
         goto=END

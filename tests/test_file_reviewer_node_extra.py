@@ -1,6 +1,4 @@
-import asyncio
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 import pytest
 
 from app.agents.nodes.file_reviewer_node import build_prompt, build_error_file_review, file_reviewer_error_handler, lazily_load_agent, file_reviewer_node
@@ -15,7 +13,7 @@ class FakeNodeError:
 
 
 def test_build_prompt_contains_fields():
-    file = ChangedFile(filename="a.py", status="modified", additions=1, deletions=0, patch="+1")
+    file = ChangedFile(filename="a.py", commit_sha="abcd12345678", status="modified", additions=1, deletions=0, patch="+1")
     meta = PRMetadata(title="T", description="D", author="a", base_branch="main")
     out = build_prompt(file, meta)
     assert "Review the PR patch" in out
@@ -31,7 +29,7 @@ def test_build_error_file_review_contains_message():
 
 
 def test_file_reviewer_error_handler_updates_state():
-    file = ChangedFile(filename="a.py", status="modified", additions=1, deletions=0, patch="p")
+    file = ChangedFile(filename="a.py", commit_sha="abcd12345678", status="modified", additions=1, deletions=0, patch="p")
     state = PRState(files_to_review=[file], current_file_index=0)
     err = FakeNodeError(node="file_reviewer_node", error=Exception("err"))
     cmd = file_reviewer_error_handler(state, err)

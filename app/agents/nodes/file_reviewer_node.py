@@ -13,6 +13,9 @@ from app.agents.state import PRState, PRMetadata, ChangedFile
 from app.agents.tools import related_code_retriever
 import logging
 
+from app.services import cache_service
+from app.services.cache_service import RedisCacheService
+
 logger = logging.getLogger(__name__)
 
 class CodeIssue(BaseModel):
@@ -79,11 +82,25 @@ async def file_reviewer_node(state: PRState, runtime: Runtime[ContextRepoInfo]):
     logger.info(f"PR file reviewing: {file.filename}")
     _agent = lazily_load_agent()
     runtime.context.retrieval_used_count = 0
-    review = await _agent.ainvoke({"messages": [
-        {"role": "user", "content": build_prompt(file, state.pr_data.pr_metadata)}
-    ]})
+    key = f"{file.commit_sha}-{file.filename}"
+    redis_cache: RedisCacheService | None = (
+        cache_service.get_redis_cache_service()
+        if cache_service.is_redis_cache_enabled()
+        else None
+    )
+
+    if redis_cache and redis_cache.exists(key):
+        logger.info(f"Cached file reviewing file: {file.filename}")
+        structured_response = cache_service.get_redis_cache_service().get(key)
+    else:
+        review = await _agent.ainvoke({"messages": [
+            {"role": "user", "content": build_prompt(file, state.pr_data.pr_metadata)}
+        ]})
+        structured_response = review["structured_response"].model_dump()
+        if redis_cache:
+            redis_cache.set(key, structured_response)
     return Command(
-        update={"file_reviews": [{"file": file.filename, "review": review["structured_response"].model_dump()}], "current_file_index": current_index + 1},
+        update={"file_reviews": [{"file": file.filename, "review": structured_response}], "current_file_index": current_index + 1},
         goto="file_reviewer_node"
     )
 

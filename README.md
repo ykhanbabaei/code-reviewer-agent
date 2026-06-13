@@ -1,7 +1,7 @@
 
 # 🤖 Code Reviewer Agent
 
-> A production-grade AI system that automatically reviews GitHub Pull Requests using LLMs, static analysis tools, and agentic workflows built with LangGraph.
+> An AI system that reviews GitHub Pull Requests using LLMs, static analysis tools, and agentic workflows built with LangGraph.
 
 This system acts as an **intelligent CI reviewer**, capable of analyzing code quality, detecting security vulnerabilities, and generating actionable PR feedback in real time.
 
@@ -15,7 +15,7 @@ It is designed with **scalability, observability, fault tolerance, and streaming
 
 * **LangGraph** – stateful agent orchestration (fan-out/fan-in, checkpoints, retries)
 * **LangChain** – LLM integration, tool calling, structured outputs
-* **OpenAI / Claude / Local LLMs (Ollama, vLLM)**
+* **OpenAI / Hugging Face**
 
 ---
 
@@ -156,15 +156,14 @@ code-reviewer-agent/
 │   │   └── tools.py
 │   │
 │   ├── services/            # GitHub + LLM + orchestration services
-│   ├── analyzers/           # Bandit, Semgrep, Ruff integrations
 │   ├── prompts/             # Prompt templates
 │   ├── observability/       # LangSmith + logging config
-│   └── utils/
+│   ├── main.py              # FastAPI application entry point
+│   ├── config.py            # App config and environment variable loading
 │
 ├── tests/
 ├── docker-compose.yml
 ├── Dockerfile
-├── main.py
 ├── requirements.txt
 └── README.md
 ```
@@ -205,13 +204,20 @@ pip install -r requirements.txt
 Create `.env`:
 
 ```env
-OPENAI_API_KEY=your_key
+OPENAI_API_KEY=your_key # Required for Model calls
+HF_TOKEN="your_key" # Required for embedding calls if using HuggingFace models
+QDRANT_STORAGE_PATH="/app/qdrant_code_reviewer_db" # can use this path for dockerized deployment
+LOG_FILE_PATH="/app/code_reviewer.log"  # can use this path for dockerized deployment
+LANGSMITH_TRACING=true #optional for monitoring
+LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com    #optional for monitoring
+LANGSMITH_API_KEY=api_key   #optional for monitoring
+LANGSMITH_PROJECT="Langgraph" #optional for monitoring
 
-DATABASE_URL=postgresql://user:password@localhost:5432/reviewer
-REDIS_URL=redis://localhost:6379
+REDIS_CACHE_URL="redis://@localhost:6379/0" #optional for enabling cache
+POSTGRES_URL="postgresql://postgres:postgres@localhost:5432/langgraph" #optional for storing state data
 
-LANGSMITH_API_KEY=your_langsmith_key
-LANGSMITH_PROJECT=code-reviewer-agent
+MLFLOW_TRACKING_URI="http://localhost:5000/"  # optional
+MLFLOW_EXPERIMENT="langgraph"   # optional
 ```
 
 ---
@@ -226,169 +232,64 @@ uvicorn app.main:app --reload
 
 # 🐳 Deployment (Production Ready)
 
-## Option 1: Docker (Recommended)
+## Docker 
 
-### Build image
-
-```bash
-docker build -t code-reviewer-agent .
-```
-
----
-
-### Run container
+### Build image and deploy
 
 ```bash
-docker run -p 8000:8000 --env-file .env code-reviewer-agent
+docker-compose up
 ```
 
 ---
 
-## Option 2: Docker Compose (Full Stack)
-
-```yaml
-version: "3.9"
-
-services:
-  api:
-    build: .
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    depends_on:
-      - redis
-      - postgres
-
-  worker:
-    build: .
-    command: python worker.py
-    env_file:
-      - .env
-    depends_on:
-      - redis
-      - postgres
-
-  redis:
-    image: redis:7
-
-  postgres:
-    image: postgres:15
-```
-
----
-
-## Option 3: Cloud Deployment
-
-Recommended:
-
-* AWS ECS / Fargate
-* Google Cloud Run
-* Azure Container Apps
-* Fly.io (lightweight deployments)
-
----
-
-### Production Best Practices
-
-* Use worker-based architecture for LangGraph execution
-* Enable PostgreSQL checkpointing
-* Use Redis for queueing + deduplication
-* Enable HTTPS for GitHub webhooks
-* Configure autoscaling for worker nodes
-
----
 
 # 🧠 How to Use
 
-## 1. Configure GitHub Webhook
+After deployment, The Agent is accessible in `http://localhost:8000`.
 
-Go to:
+Sample curl request to trigger a review:
 
-```
-GitHub → Settings → Webhooks → Add webhook
-```
-
-### Configuration:
-
-| Field        | Value                                    |
-| ------------ | ---------------------------------------- |
-| Payload URL  | `https://your-domain.com/webhook/github` |
-| Content type | `application/json`                       |
-| Events       | Pull Requests                            |
-
----
-
-## 2. Trigger a PR Review
-
-Simply open or update a pull request:
-
-```text
-GitHub automatically sends webhook → system starts analysis
+```bash
+curl --no-buffer -X POST "http://localhost:8000/review" \
+-H "Content-Type: application/json" \
+-d '{  "user_name": "github_user", "repository": "github_repository", "pull_number": 2}'
 ```
 
----
+For providing repository source code as RAG context data for better code review, call following api
 
-## 3. What happens internally
+```bash
+curl -X POST 'http://localhost:8000/embed' \
+-H 'Content-Type: application/json' \
+-d '{  "user_name": "github_user",  "github_repository": "ebf-employee-management",   "token":"access token" }'
+```
 
-1. FastAPI receives webhook (async, non-blocking)
+
+## What happens internally
+
+1. FastAPI receives code review request (async, non-blocking)
 2. PR diff is fetched from GitHub API
 3. LangGraph orchestrates analysis pipeline
 4. Files processed in parallel (fan-out)
 5. LLM + static tools analyze code
 6. Streaming aggregation builds final report
 7. LangSmith logs full execution trace
-8. GitHub PR comment is posted
-
----
-
-## 4. View results
-
-### In GitHub PR:
-
-* Automated review comment
-* Severity-ranked issues
-* Suggested fixes
-
-### In CI status:
-
-* Pass / Fail / Warning
+8. API returns response with code review result
 
 ---
 
 ## 5. API Endpoints
 
-### Triggered internally (webhook)
+### pr code review call
 
 ```http
-POST /webhook/github
+POST /review
 ```
 
----
-
-### Check status
+### embedding source code
 
 ```http
-GET /review/{review_id}/status
+POST /embed
 ```
-
----
-
-### Cancel review
-
-```http
-POST /review/{review_id}/cancel
-```
-
----
-
-# 🔐 Security
-
-* GitHub webhook signature validation (HMAC SHA-256)
-* Prompt injection mitigation via diff-only context isolation
-* No execution of user-provided code
-* Secrets stored in environment variables / vault
-* Optional self-hosted LLM support for air-gapped environments
 
 ---
 
@@ -423,29 +324,5 @@ You can monitor:
 * Slack + Teams integration
 * PR risk scoring dashboard
 * Continuous learning from developer feedback
-
----
-
-
-# How to use
-After deployment, The Agent is accessible in `http://localhost:8000`.
-Sample curl request to trigger a review:
-
-```bash
-curl --no-buffer -X POST "http://localhost:8000/review" \
--H "Content-Type: application/json" \
--d '{  "user_name": "github_user",  "repository": "github_repository",        "pull_number": 2}'
-```
-
-# Environment Variables
-
-   ```bash
-   OPENAI_API_KEY="your openai api key"
-   ```
-  Optionally if you want to enable langsmith tracing, add the following environment variable:
-   ```bash
-   LANGSMITH_TRACING="langsmith is enabled or not"
-   LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com
-   LANGSMITH_API_KEY="api key for langsmith"
-   LANGSMITH_PROJECT="Langgraph"
-   ```
+* Connect to Github Webhooks
+* Send notification email to the user

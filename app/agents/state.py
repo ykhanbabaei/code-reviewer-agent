@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class ChangedFile(BaseModel):
     filename: str
+    commit_sha: str
     status: Literal["added", "modified", "deleted", "renamed"]
     additions: int = Field(ge=0)
     deletions: int = Field(ge=0)

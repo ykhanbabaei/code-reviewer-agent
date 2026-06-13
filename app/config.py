@@ -21,9 +21,16 @@ class MonitoringConfig(BaseSettings):
     log_format: str = Field(default="json")  # json or console
     log_file: Optional[str] = Field(default=os.getenv('LOG_FILE_PATH', str(get_root_path() / "app.log")))
 
-class DatabaseConfig(BaseSettings):
+class QdrantConfig(BaseSettings):
     # Qdrant config
     qdrant_db_path: Optional[str] = Field(default=os.getenv('QDRANT_STORAGE_PATH',  str(get_root_path() / "qdrant_code_reviewer_db")))
+
+class RedisConfig(BaseSettings):
+    url: Optional[str] = Field(default=os.getenv('REDIS_CACHE_URL'))
+    ttl: Optional[int] = Field(default=int(os.getenv('REDIS_CACHE_TTL', '3600')))
+
+class PostgresSaverConfig(BaseSettings):
+    url: Optional[str] = Field(default=None)
 
 class LLMConfig(BaseSettings):
     hugging_face_api_key: Optional[str] = Field(default=os.getenv('HF_TOKEN'))
@@ -35,12 +42,19 @@ class RankerConfig(BaseSettings):
 class ToolConfig(BaseSettings):
     max_tool_call: int = Field(default=3)
 
+class MLFlowConfig(BaseSettings):
+    tracking_uri: Optional[str] = Field(default=os.getenv('MLFLOW_TRACKING_URI'))
+    experiment: Optional[str] = Field(default=os.getenv('MLFLOW_EXPERIMENT'))
+
 class Settings(BaseSettings):
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
-    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    qdrant: QdrantConfig = Field(default_factory=QdrantConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     ranker: RankerConfig = Field(default_factory=RankerConfig)
     tool: ToolConfig = Field(default_factory=ToolConfig)
+    redis: RedisConfig = Field(default_factory=RedisConfig)
+    postgres: PostgresSaverConfig = Field(default_factory=PostgresSaverConfig)
+    mlflow: MLFlowConfig = Field(default_factory=MLFlowConfig)
 
 
 settings = Settings()

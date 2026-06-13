@@ -8,13 +8,14 @@ from app.agents.state import PRState
 
 
 class FakeFile:
-    def __init__(self, filename, status, additions, deletions, patch, contents_url=None):
+    def __init__(self, filename, sha, status, additions, deletions, patch, contents_url=None):
         self.filename = filename
         self.status = status
         self.additions = additions
         self.deletions = deletions
         self.patch = patch
         self.contents_url = contents_url
+        self.sha = sha
 
 
 class FakeLabel:
@@ -51,7 +52,7 @@ class FakePR:
     ("no refs here", []),
 ])
 def test_build_pr_data_from_parses_linked_issues(body, expected_linked):
-    files = [FakeFile("a.py", "modified", 1, 0, "+1", "http://c")]
+    files = [FakeFile("a.py", "abcd12345678", "modified", 1, 0, "+1", "http://c")]
     pr = FakePR(title="T", body=body, user_login="u", base_ref="main", labels=["bug"], files=files)
     pr_data = drn.build_pr_data_from(pr)
     assert pr_data.pr_metadata.title == "T"
@@ -63,7 +64,7 @@ def test_build_pr_data_from_parses_linked_issues(body, expected_linked):
 
 
 def test_build_pr_data_handles_file_without_contents_url():
-    files = [FakeFile("b.java", "added", 5, 0, "+5", None)]
+    files = [FakeFile("b.java", "abcd12345678", "added", 5, 0, "+5", None)]
     pr = FakePR(title="T2", body="", user_login="u2", base_ref="dev", labels=[], files=files)
     pr_data = drn.build_pr_data_from(pr)
     assert pr_data.files_changed[0].full_content is None

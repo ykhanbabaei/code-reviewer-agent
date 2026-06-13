@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
-from app.agents.graph import workflow_agent
+from app.agents.graph import get_workflow_agent
 import json
 
 from app.services.rag_service import SourceCodeRagService, source_code_rag_service
@@ -22,6 +22,7 @@ class PRRequest(BaseModel):
 @router.post("/review/")
 async def create_item(pr: PRRequest):
     async def stream():
+        workflow_agent = await get_workflow_agent()
         async for item in workflow_agent.astream_pr_files({
             "user_name": pr.user_name,
             "repository": pr.repository,

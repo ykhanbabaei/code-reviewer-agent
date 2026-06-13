@@ -5,20 +5,26 @@ from typing import Union
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.constants import START, END
 from langgraph.graph import StateGraph
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.agents.context import ContextRepoInfo
 from app.agents.state import PRState
 import logging
+import mlflow
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 class WorkflowAgent:
 
-    def __init__(self):
-        self.graph = self.build_state_graph()
+    def __init__(self, graph):
+        self.graph = graph
 
-    def build_state_graph(self):
+    @staticmethod
+    async def build_state_graph():
         logger.info("building state graph")
+        WorkflowAgent.activate_mlflow()
         agent_builder = StateGraph(PRState)
         from app.agents.nodes.data_retriever_node import data_retriever_node, data_retriever_error_handler
         from app.agents.nodes.file_reviewer_node import file_reviewer_node, file_reviewer_error_handler
@@ -40,9 +46,23 @@ class WorkflowAgent:
         agent_builder.add_edge("chunker_node", "file_reviewer_node")
         agent_builder.add_edge("synthesizer_node", END)
 
-        checkpointer = MemorySaver()
-        return agent_builder.compile(checkpointer=checkpointer)
+        if settings.postgres.url:
+            async with AsyncPostgresSaver.from_conn_string(settings.postgres.url) as checkpointer:
+                await checkpointer.setup()
+                return agent_builder.compile(checkpointer=checkpointer)
+        else:
+            return agent_builder.compile(checkpointer=MemorySaver())
 
+    @staticmethod
+    def activate_mlflow():
+        if not settings.mlflow.tracking_uri:
+            return
+        # 1. Configure MLflow
+        mlflow.set_tracking_uri( settings.mlflow.tracking_uri)  # Or your tracking server
+        mlflow.set_experiment(settings.mlflow.experiment)
+
+        # 2. Enable Auto-Tracing - This is the core of the integration
+        mlflow.langchain.autolog()
 
     async def astream_pr_files(self, context:  Union[ContextRepoInfo, dict]):
         if isinstance(context, dict):
@@ -66,6 +86,8 @@ class WorkflowAgent:
                         "file_name" : state["file_reviews"][0]["file"],
                         "issues" : state["file_reviews"][0]["review"]["issues"],
                         "summary" : state["file_reviews"][0]["review"]["summary"],
+                        "error": state["file_reviews"][0]["review"]["error"],
+
                     }
 
 
@@ -73,15 +95,13 @@ class WorkflowAgent:
 def build_context_data():
     return ContextRepoInfo(user_name="ykhanbabaei", repository="url-shortener", pull_number=2)
 
-async def handle_astream_pr_files(context: ContextRepoInfo):
-    async for  pr_file in workflow_agent.astream_pr_files(context):
-        print(f"yielded file review: {pr_file}")
 
 
-workflow_agent = WorkflowAgent()
+async def get_workflow_agent():
+    global _workflow_agent
+    if _workflow_agent is None:
+        _g = await WorkflowAgent.build_state_graph()
+        _workflow_agent = WorkflowAgent(_g)
+    return _workflow_agent
 
-def main():
-    asyncio.run(handle_astream_pr_files(build_context_data()))
-
-if __name__ == '__main__':
-    main()
+_workflow_agent = None

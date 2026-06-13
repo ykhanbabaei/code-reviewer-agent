@@ -18,3 +18,7 @@ pytest
 pytest-asyncio
 pytest-mock
 flashrank
+redis
+langgraph-checkpoint-postgres
+psycopg[binary,pool]
+import mlflow

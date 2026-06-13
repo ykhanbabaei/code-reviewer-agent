@@ -24,7 +24,7 @@ class SourceCodeRagService:
     Rag service for java and python which fetch source code from Github
     """
 
-    client = QdrantClient(path=settings.database.qdrant_db_path)
+    client = QdrantClient(path=settings.qdrant.qdrant_db_path)
 
     splitter_java = RecursiveCharacterTextSplitter.from_language(language=Language.JAVA)
     splitter_python = RecursiveCharacterTextSplitter.from_language(language=Language.PYTHON)
