@@ -21,4 +21,4 @@ flashrank
 redis
 langgraph-checkpoint-postgres
 psycopg[binary,pool]
-import mlflow
+mlflow
