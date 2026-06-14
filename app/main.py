@@ -33,6 +33,9 @@ app.add_middleware(
 from app.api.review_routes import router
 app.include_router(router)
 
+@app.get("/")
+async def health_check():
+    return {"status": "ok"}
 
 # TODO 1. Fixing Security vulnerability of allowing all origins in CORS middleware.
 #      2. Add authentication and authorization to the API endpoints.

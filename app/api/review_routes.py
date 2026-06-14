@@ -19,7 +19,7 @@ class PRRequest(BaseModel):
     token: Optional[str] = Field(default=None, description="access token for loading source code and indexing")
 
 
-@router.post("/review/")
+@router.post("/api/review/")
 async def create_item(pr: PRRequest):
     async def stream():
         workflow_agent = await get_workflow_agent()
@@ -36,7 +36,7 @@ async def create_item(pr: PRRequest):
         media_type="application/x-ndjson"
     )
 
-@router.post("/embed/")
+@router.post("/api/embed/")
 async def embed(pr: PRRequest):
     # Run blocking code in thread pool since SourceCodeRagService is blocking
     loop = asyncio.get_running_loop()

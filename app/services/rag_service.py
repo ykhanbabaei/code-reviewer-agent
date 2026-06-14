@@ -135,6 +135,7 @@ class SourceCodeRagService:
 
         except GithubException as e:
             logger.error(f"Error accessing repository {github_repository}: {e}")
+            raise e
 
         logger.info(f"Loaded {len(documents)} code files from {github_repository}")
         return documents

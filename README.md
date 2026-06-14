@@ -213,9 +213,10 @@ LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com    #optional for monitorin
 LANGSMITH_API_KEY=api_key   #optional for monitoring
 LANGSMITH_PROJECT="Langgraph" #optional for monitoring
 REDIS_CACHE_URL="redis://@redis:6379/0" #optional for enabling cache
+REDIS_CACHE_TTL=3600 #optional cache ttl in seconds. default 3600
 POSTGRES_URL="postgresql://postgres:postgres@postgres:5432/langgraph" #optional for storing state data
 MLFLOW_TRACKING_URI="http://mlflow:5000/"  # optional
-MLFLOW_EXPERIMENT="langgraph"   # optional
+MLFLOW_EXPERIMENT="langgraph"   # optional new experiment in mlflow server with this name should be created
 ```
 
 ---
@@ -248,7 +249,7 @@ After deployment, The Agent is accessible in `http://localhost:8000`.
 Sample curl request to trigger a review:
 
 ```bash
-curl --no-buffer -X POST "http://localhost:8000/review" \
+curl --no-buffer -X POST "http://localhost:8000/api/review" \
 -H "Content-Type: application/json" \
 -d '{  "user_name": "github_user", "repository": "github_repository", "pull_number": 2}'
 ```
@@ -256,9 +257,9 @@ curl --no-buffer -X POST "http://localhost:8000/review" \
 For providing repository source code as RAG context data for better code review, call following api
 
 ```bash
-curl -X POST 'http://localhost:8000/embed' \
+curl -X POST 'http://localhost:8000/api/embed' \
 -H 'Content-Type: application/json' \
--d '{  "user_name": "github_user",  "github_repository": "ebf-employee-management",   "token":"access token" }'
+-d '{  "user_name": "github_user",  "repository": "your repository",   "token":"access token" }'
 ```
 
 
@@ -280,13 +281,13 @@ curl -X POST 'http://localhost:8000/embed' \
 ### pr code review call
 
 ```http
-POST /review
+POST /api/review
 ```
 
 ### embedding source code
 
 ```http
-POST /embed
+POST /api/embed
 ```
 
 ---
