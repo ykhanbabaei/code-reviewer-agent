@@ -4,7 +4,10 @@ import uvicorn
 from fastapi import FastAPI
 import logging
 from dotenv import load_dotenv
+from github import GithubException
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
+from fastapi import Request
 
 load_dotenv()
 
@@ -36,6 +39,18 @@ app.include_router(router)
 @app.get("/")
 async def health_check():
     return {"status": "ok"}
+
+@app.exception_handler(GithubException)
+async def github_exception_handler(
+    request: Request,
+    exc: GithubException,
+):
+    return JSONResponse(
+        status_code=exc.status or 500,
+        content={
+            "detail": exc.data.get("message", str(exc))
+        },
+    )
 
 # TODO 1. Fixing Security vulnerability of allowing all origins in CORS middleware.
 #      2. Add authentication and authorization to the API endpoints.

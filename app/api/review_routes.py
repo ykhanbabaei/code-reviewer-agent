@@ -1,7 +1,7 @@
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
@@ -40,5 +40,8 @@ async def create_item(pr: PRRequest):
 async def embed(pr: PRRequest):
     # Run blocking code in thread pool since SourceCodeRagService is blocking
     loop = asyncio.get_running_loop()
-    _ = await loop.run_in_executor(None, lambda: source_code_rag_service.retrieve_and_embed(pr.user_name, pr.repository, pr.token))
+    try:
+        result = await loop.run_in_executor(None, lambda: source_code_rag_service.retrieve_and_embed(pr.user_name, pr.repository, pr.token))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return "repository embedded"
