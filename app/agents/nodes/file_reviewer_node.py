@@ -23,7 +23,14 @@ class CodeIssue(BaseModel):
         description="e.g. '42-47' or '42' for single line"
     )
     severity: Literal["low", "medium", "high", "critical"]
-    description: str = Field(description="What the issue is, in 1-2 sentences")
+    description: str = Field(
+        description=(
+            "Concrete defect introduced by the patch. "
+            "describe incorrect behavior, risk, or failure mode. "
+            "Do not use for style, readability, comments, naming, "
+            "documentation, or praise."
+        )
+    )
 
 
 class FileReview(BaseModel):
@@ -38,13 +45,14 @@ class FileReview(BaseModel):
         )
     )
 
-
     summary: Optional[str] = Field(
-        default=None,
         description=(
-            "1-2 sentences on what changed. If no issues found, summarize the change and explicitly state that no issues were found. "
+            "Objective description of the patch. "
+            "Do not include praise, opinions, recommendations, "
+            "or code quality assessments."
         )
     )
+    
     error: Optional[str] = Field(
         default=None,
         description="Populated only on exception. Leave null if review completed."
