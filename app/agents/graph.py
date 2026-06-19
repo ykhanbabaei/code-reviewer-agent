@@ -24,7 +24,6 @@ class WorkflowAgent:
     @staticmethod
     async def build_state_graph():
         logger.info("building state graph")
-        WorkflowAgent.activate_mlflow()
         agent_builder = StateGraph(PRState)
         from app.agents.nodes.data_retriever_node import data_retriever_node, data_retriever_error_handler
         from app.agents.nodes.file_reviewer_node import file_reviewer_node, file_reviewer_error_handler
@@ -54,7 +53,7 @@ class WorkflowAgent:
             return agent_builder.compile(checkpointer=MemorySaver())
 
     @staticmethod
-    def activate_mlflow():
+    async def activate_mlflow():
         if not settings.mlflow.tracking_uri:
             return
         # 1. Configure MLflow
@@ -87,7 +86,7 @@ class WorkflowAgent:
                         "issues" : state["file_reviews"][0]["review"]["issues"],
                         "summary" : state["file_reviews"][0]["review"]["summary"],
                         "error": state["file_reviews"][0]["review"]["error"],
-
+                        "new_data": state["file_reviews"][1]["review"]["dataaaa"]
                     }
 
 
@@ -101,6 +100,7 @@ async def get_workflow_agent():
     global _workflow_agent
     if _workflow_agent is None:
         _g = await WorkflowAgent.build_state_graph()
+        WorkflowAgent.activate_mlflow()
         _workflow_agent = WorkflowAgent(_g)
     return _workflow_agent
 

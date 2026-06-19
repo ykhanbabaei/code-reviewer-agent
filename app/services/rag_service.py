@@ -4,6 +4,7 @@ from typing import Sequence, List
 
 import logging
 
+from fsspec.asyn import loop
 from github import GithubException, Github
 from langchain_classic.retrievers import ContextualCompressionRetriever
 from langchain_core.documents import Document
@@ -63,7 +64,7 @@ class SourceCodeRagService:
         compressed_docs = compression_retriever.invoke(input=query)
         return compressed_docs
 
-    def load_repository_contents(self, github_user_name: str, github_repository: str, github_token: str|None , branch: str = "main") -> List[Document]:
+    async def load_repository_contents(self, github_user_name: str, github_repository: str, github_token: str|None , branch: str = "main") -> List[Document]:
         """
         Recursively fetch all files from a GitHub repository.
 
@@ -82,11 +83,11 @@ class SourceCodeRagService:
 
         documents = []
         try:
-            github = Github(github_token or github_user_name)
-            repo = github.get_repo(f"{github_user_name}/{github_repository}")
+            github = await loop.run_in_executor(Github(github_token or github_user_name))
+            repo = await loop.run_in_executor(github.get_repo(f"{github_user_name}/{github_repository}"))
 
             # Get contents from the specified branch
-            contents = repo.get_contents("", ref=branch)
+            contents = await loop.run_in_executor(repo.get_contents("", ref=branch))
 
             while contents:
                 file_content = contents.pop(0)
@@ -196,7 +197,7 @@ class SourceCodeRagService:
         logger.info(f"Created {len(chunked_docs)} chunks")
         return chunked_docs
 
-    def retrieve_and_embed(self, github_user_name: str,  github_repository: str, github_token: str|None) :
+    async def retrieve_and_embed(self, github_user_name: str,  github_repository: str, github_token: str|None) :
 
         logger.info(f"indexing data started repository: {github_repository}")
         docs = self.load_repository_contents(github_user_name, github_repository, github_token, branch="main")
